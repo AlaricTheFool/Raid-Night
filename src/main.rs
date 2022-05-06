@@ -1,19 +1,18 @@
 use crate::prelude::*;
 
 mod battle_grid;
+mod components;
 mod systems;
 mod turn_tracker;
 
 mod prelude {
-    #[derive(Debug)]
-    pub struct Coordinate {
-        pub x: i32,
-        pub y: i32,
-    }
 
     pub use crate::battle_grid::*;
+    pub use crate::components::*;
     pub use crate::systems::*;
     pub use crate::turn_tracker::*;
+    pub use ::rand::prelude::*;
+    pub use legion::world::SubWorld;
     pub use legion::*;
     pub use macroquad::prelude::*;
 }
@@ -21,7 +20,9 @@ mod prelude {
 struct State {
     world: World,
     resources: Resources,
-    schedule: Schedule,
+    start_of_round_schedule: Schedule,
+    declare_phase_schedule: Schedule,
+    resolve_phase_schedule: Schedule,
 }
 
 impl State {
@@ -37,10 +38,15 @@ impl State {
             line_width: 4.,
         });
 
+        resources.insert(TurnTracker::new());
+        resources.insert(0.0 as f32);
+
         Self {
             world,
             resources,
-            schedule: build_schedule(),
+            start_of_round_schedule: build_start_of_round_schedule(),
+            declare_phase_schedule: build_schedule(),
+            resolve_phase_schedule: build_schedule(),
         }
     }
 }
@@ -57,10 +63,56 @@ fn window_conf() -> Conf {
 #[macroquad::main(window_conf)]
 async fn main() {
     let mut state = State::new();
+
+    state.world.push((
+        Player,
+        Initiative {
+            init_mod: 0,
+            priority: 100,
+        },
+        Name {
+            val: "You".to_string(),
+        },
+    ));
+
+    (0..3).for_each(|num| {
+        let (name, init_mod, (y, x), color) = match num {
+            0 => ("Fighter", -1, (1, 2), ORANGE),
+            1 => ("Cleric", 0, (0, 1), BLUE),
+            2 => ("Wizard", 1, (0, 3), RED),
+            _ => ("Hero", 0, (0, 0), PINK),
+        };
+
+        state.world.push((
+            Enemy,
+            Initiative {
+                init_mod,
+                priority: 0,
+            },
+            Name {
+                val: name.to_string(),
+            },
+            Coordinate { x, y },
+            color,
+        ));
+    });
+
     loop {
-        state
-            .schedule
-            .execute(&mut state.world, &mut state.resources);
+        let turn_tracker = state.resources.get::<TurnTracker>().unwrap().clone();
+
+        match turn_tracker.turn_state {
+            TurnState::StartOfRound => {
+                state
+                    .start_of_round_schedule
+                    .execute(&mut state.world, &mut state.resources);
+            }
+
+            _ => {
+                state
+                    .declare_phase_schedule
+                    .execute(&mut state.world, &mut state.resources);
+            }
+        }
 
         next_frame().await
     }
