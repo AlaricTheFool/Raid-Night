@@ -12,6 +12,7 @@ mod prelude {
     pub use crate::systems::*;
     pub use crate::turn_tracker::*;
     pub use ::rand::prelude::*;
+    pub use legion::systems::CommandBuffer;
     pub use legion::world::SubWorld;
     pub use legion::*;
     pub use macroquad::prelude::*;
@@ -45,8 +46,8 @@ impl State {
             world,
             resources,
             start_of_round_schedule: build_start_of_round_schedule(),
-            declare_phase_schedule: build_schedule(),
-            resolve_phase_schedule: build_schedule(),
+            declare_phase_schedule: build_declare_phase_schedule(),
+            resolve_phase_schedule: build_resolve_phase_schedule(),
         }
     }
 }
@@ -94,6 +95,7 @@ async fn main() {
             },
             Coordinate { x, y },
             color,
+            ActionPoints::new(3),
         ));
     });
 
@@ -107,9 +109,15 @@ async fn main() {
                     .execute(&mut state.world, &mut state.resources);
             }
 
-            _ => {
+            TurnState::DeclarePhase => {
                 state
                     .declare_phase_schedule
+                    .execute(&mut state.world, &mut state.resources);
+            }
+
+            TurnState::ResolvePhase => {
+                state
+                    .resolve_phase_schedule
                     .execute(&mut state.world, &mut state.resources);
             }
         }

@@ -105,7 +105,7 @@ impl TurnTracker {
         }
     }
 
-    pub fn get_current_combatant(&mut self) -> Combatant {
+    pub fn get_current_combatant(&self) -> Combatant {
         self.combatants[self.current_combatant]
     }
 }

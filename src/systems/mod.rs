@@ -1,18 +1,5 @@
 use crate::prelude::*;
 
-pub fn build_schedule() -> Schedule {
-    Schedule::builder()
-        .add_thread_local(clear_bg_system())
-        .add_thread_local(draw_grid_system())
-        .add_thread_local(draw_turn_tracker_system())
-        .add_thread_local(draw_grid_pieces_system())
-        .flush()
-        .add_system(print_hovered_cell_system())
-        .flush()
-        .add_system(end_turn_system())
-        .build()
-}
-
 pub fn build_start_of_round_schedule() -> Schedule {
     Schedule::builder()
         .add_thread_local(clear_bg_system())
@@ -22,6 +9,34 @@ pub fn build_start_of_round_schedule() -> Schedule {
         .flush()
         .add_system(print_hovered_cell_system())
         .add_system(roll_initiative_system())
+        .add_system(clear_round_messages_system())
+        .flush()
+        .add_system(end_turn_system())
+        .build()
+}
+
+pub fn build_declare_phase_schedule() -> Schedule {
+    Schedule::builder()
+        .add_thread_local(clear_bg_system())
+        .add_thread_local(draw_grid_system())
+        .add_thread_local(draw_turn_tracker_system())
+        .add_thread_local(draw_grid_pieces_system())
+        .flush()
+        .add_system(print_hovered_cell_system())
+        .add_system(declare_ai_action_system())
+        .flush()
+        .add_system(end_turn_system())
+        .build()
+}
+
+pub fn build_resolve_phase_schedule() -> Schedule {
+    Schedule::builder()
+        .add_thread_local(clear_bg_system())
+        .add_thread_local(draw_grid_system())
+        .add_thread_local(draw_turn_tracker_system())
+        .add_thread_local(draw_grid_pieces_system())
+        .flush()
+        .add_system(print_hovered_cell_system())
         .flush()
         .add_system(end_turn_system())
         .build()
@@ -96,6 +111,9 @@ fn draw_turn_tracker(ecs: &SubWorld, #[resource] turn_tracker: &TurnTracker) {
 
 #[system]
 #[read_component(Player)]
+#[read_component(Message)]
+#[read_component(Source)]
+#[read_component(ActionDeclarationFinished)]
 fn end_turn(
     ecs: &SubWorld,
     #[resource] turn_tracker: &mut TurnTracker,
@@ -112,10 +130,14 @@ fn end_turn(
                     turn_tracker.next_turn();
                 }
             } else {
-                *timer += get_frame_time();
+                let mut msg_query = <(&Message, &Source, &ActionDeclarationFinished)>::query();
 
-                while *timer >= 0.5 {
-                    *timer -= 0.5;
+                if msg_query
+                    .iter(ecs)
+                    .filter(|(_, src, _)| src.entity == turn_tracker.get_current_combatant().entity)
+                    .nth(0)
+                    .is_some()
+                {
                     turn_tracker.next_turn();
                 }
             }
@@ -155,4 +177,35 @@ fn draw_grid_pieces(
         48.0,
         BLACK,
     );
+}
+
+#[system]
+#[read_component(Enemy)]
+fn declare_ai_action(
+    ecs: &mut SubWorld,
+    commands: &mut CommandBuffer,
+    #[resource] turn_tracker: &TurnTracker,
+    #[resource] timer: &mut f32,
+) {
+    if let Ok(current_combatant) = ecs.entry_ref(turn_tracker.get_current_combatant().entity) {
+        *timer += get_frame_time();
+
+        if *timer >= 0.5 {
+            *timer = 0.0;
+            commands.push((
+                (),
+                Message,
+                ActionDeclarationFinished,
+                Source {
+                    entity: turn_tracker.get_current_combatant().entity,
+                },
+                Round,
+            ));
+        }
+    }
+}
+
+#[system(for_each)]
+fn clear_round_messages(commands: &mut CommandBuffer, entity: &Entity, _msg: &Message, _: &Round) {
+    commands.remove(*entity);
 }
