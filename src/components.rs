@@ -13,12 +13,6 @@ pub struct Name {
     pub val: String,
 }
 
-#[derive(Debug)]
-pub struct Coordinate {
-    pub x: i32,
-    pub y: i32,
-}
-
 pub struct ActionPoints {
     pub current: i32,
     pub max: i32,
@@ -39,3 +33,7 @@ pub struct Source {
 pub struct ActionDeclarationFinished;
 
 pub struct Round;
+
+pub struct Move {
+    dirs: Vec<Direction>,
+}

@@ -2,6 +2,9 @@ use crate::prelude::*;
 
 mod battle_grid;
 mod components;
+mod coordinate;
+mod direction;
+mod move_action;
 mod systems;
 mod turn_tracker;
 
@@ -9,6 +12,9 @@ mod prelude {
 
     pub use crate::battle_grid::*;
     pub use crate::components::*;
+    pub use crate::coordinate::*;
+    pub use crate::direction::*;
+    pub use crate::move_action::*;
     pub use crate::systems::*;
     pub use crate::turn_tracker::*;
     pub use ::rand::prelude::*;

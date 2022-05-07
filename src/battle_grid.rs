@@ -47,7 +47,11 @@ impl BattleGrid {
                 let cell_offset_x = offset.x - closest_prev_x * (self.grid_size + self.line_width);
                 let cell_offset_y = offset.y - closest_prev_y * (self.grid_size + self.line_width);
 
-                if cell_offset_x <= self.grid_size && cell_offset_y <= self.grid_size {
+                let coord = Coordinate {
+                    x: closest_prev_x as i32,
+                    y: closest_prev_y as i32,
+                };
+                if self.is_cell_in_bounds(coord) {
                     return Some(Coordinate {
                         x: closest_prev_x as i32,
                         y: closest_prev_y as i32,
@@ -56,5 +60,9 @@ impl BattleGrid {
             }
         }
         None
+    }
+
+    pub fn is_cell_in_bounds(&self, coord: Coordinate) -> bool {
+        coord.x >= 0 && coord.x < self.width && coord.y >= 0 && coord.y < self.height
     }
 }
