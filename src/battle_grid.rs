@@ -35,6 +35,10 @@ impl BattleGrid {
         )
     }
 
+    pub fn get_cell_center(&self, x: i32, y: i32) -> Vec2 {
+        self.get_cell_tl(x, y) + Vec2::new(self.grid_size * 0.5, self.grid_size * 0.5)
+    }
+
     pub fn get_cell_at_screen_pos(&self, screen_pos: Vec2) -> Option<Coordinate> {
         let offset = screen_pos - self.screen_pos;
         if offset.x >= 0. && offset.y >= 0. {

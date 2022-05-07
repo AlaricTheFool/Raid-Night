@@ -35,5 +35,5 @@ pub struct ActionDeclarationFinished;
 pub struct Round;
 
 pub struct Move {
-    dirs: Vec<Direction>,
+    pub dirs: Vec<Direction>,
 }

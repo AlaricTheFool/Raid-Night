@@ -10,7 +10,7 @@ pub fn generate_random_walk(
     let all_dirs = Direction::all();
     let random_dir = all_dirs
         .iter()
-        .filter(|dir| last_dir.is_some() && last_dir.unwrap() != **dir)
+        .filter(|dir| last_dir.is_none() || last_dir.unwrap() != **dir)
         .filter(|dir| grid.is_cell_in_bounds(pos + Coordinate::from(**dir)))
         .choose::<ThreadRng>(&mut thread_rng());
 
