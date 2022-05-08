@@ -1,9 +1,11 @@
 use crate::prelude::*;
-
 mod battle_grid;
+mod card_data;
+mod card_zones;
 mod components;
 mod coordinate;
 mod direction;
+mod game_state;
 mod move_action;
 mod systems;
 mod turn_tracker;
@@ -11,9 +13,12 @@ mod turn_tracker;
 mod prelude {
 
     pub use crate::battle_grid::*;
+    pub use crate::card_data::*;
+    pub use crate::card_zones::*;
     pub use crate::components::*;
     pub use crate::coordinate::*;
     pub use crate::direction::*;
+    pub use crate::game_state::*;
     pub use crate::move_action::*;
     pub use crate::systems::*;
     pub use crate::turn_tracker::*;
@@ -27,6 +32,7 @@ mod prelude {
 struct State {
     world: World,
     resources: Resources,
+    game_initialization_schedule: Schedule,
     start_of_round_schedule: Schedule,
     declare_phase_schedule: Schedule,
     resolve_phase_schedule: Schedule,
@@ -37,6 +43,10 @@ impl State {
         let world = World::default();
         let mut resources = Resources::default();
 
+        resources.insert(GameState::Initialization);
+        resources.insert(CardDB::new());
+        resources.insert(CardZones::new());
+
         resources.insert(BattleGrid::new());
 
         resources.insert(TurnTracker::new());
@@ -45,6 +55,7 @@ impl State {
         Self {
             world,
             resources,
+            game_initialization_schedule: build_game_initialization_schedule(),
             start_of_round_schedule: build_start_of_round_schedule(),
             declare_phase_schedule: build_declare_phase_schedule(),
             resolve_phase_schedule: build_resolve_phase_schedule(),
@@ -101,25 +112,37 @@ async fn main() {
     });
 
     loop {
-        let turn_tracker = state.resources.get::<TurnTracker>().unwrap().clone();
+        let game_state = state.resources.get::<GameState>().unwrap().clone();
 
-        match turn_tracker.turn_state {
-            TurnState::StartOfRound => {
+        match game_state {
+            GameState::Initialization => {
                 state
-                    .start_of_round_schedule
+                    .game_initialization_schedule
                     .execute(&mut state.world, &mut state.resources);
             }
 
-            TurnState::DeclarePhase => {
-                state
-                    .declare_phase_schedule
-                    .execute(&mut state.world, &mut state.resources);
-            }
+            GameState::Combat => {
+                let turn_tracker = state.resources.get::<TurnTracker>().unwrap().clone();
 
-            TurnState::ResolvePhase => {
-                state
-                    .resolve_phase_schedule
-                    .execute(&mut state.world, &mut state.resources);
+                match turn_tracker.turn_state {
+                    TurnState::StartOfRound => {
+                        state
+                            .start_of_round_schedule
+                            .execute(&mut state.world, &mut state.resources);
+                    }
+
+                    TurnState::DeclarePhase => {
+                        state
+                            .declare_phase_schedule
+                            .execute(&mut state.world, &mut state.resources);
+                    }
+
+                    TurnState::ResolvePhase => {
+                        state
+                            .resolve_phase_schedule
+                            .execute(&mut state.world, &mut state.resources);
+                    }
+                }
             }
         }
 

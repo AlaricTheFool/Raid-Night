@@ -1,6 +1,15 @@
 use crate::prelude::*;
 
+mod card;
 mod draw;
+mod initialization;
+
+pub fn build_game_initialization_schedule() -> Schedule {
+    Schedule::builder()
+        .add_system(initialization::build_starter_deck_system())
+        .add_system(initialization::begin_combat_system())
+        .build()
+}
 
 pub fn build_start_of_round_schedule() -> Schedule {
     Schedule::builder()
@@ -9,6 +18,7 @@ pub fn build_start_of_round_schedule() -> Schedule {
         .add_thread_local(draw::draw_turn_tracker_system())
         .add_thread_local(draw::draw_grid_pieces_system())
         .add_thread_local(draw::draw_declared_moves_system())
+        .add_thread_local(card::render_hand_system())
         .flush()
         .add_system(roll_initiative_system())
         .add_system(clear_round_messages_system())
@@ -25,6 +35,7 @@ pub fn build_declare_phase_schedule() -> Schedule {
         .add_thread_local(draw::draw_turn_tracker_system())
         .add_thread_local(draw::draw_grid_pieces_system())
         .add_thread_local(draw::draw_declared_moves_system())
+        .add_thread_local(card::render_hand_system())
         .flush()
         .add_system(declare_ai_action_system())
         .flush()
@@ -39,6 +50,7 @@ pub fn build_resolve_phase_schedule() -> Schedule {
         .add_thread_local(draw::draw_turn_tracker_system())
         .add_thread_local(draw::draw_grid_pieces_system())
         .add_thread_local(draw::draw_declared_moves_system())
+        .add_thread_local(card::render_hand_system())
         .flush()
         .add_system(resolve_moves_system())
         .flush()
