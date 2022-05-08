@@ -2,8 +2,6 @@ use crate::prelude::*;
 
 mod draw;
 
-use draw::*;
-
 pub fn build_start_of_round_schedule() -> Schedule {
     Schedule::builder()
         .add_thread_local(draw::clear_bg_system())
@@ -12,9 +10,9 @@ pub fn build_start_of_round_schedule() -> Schedule {
         .add_thread_local(draw::draw_grid_pieces_system())
         .add_thread_local(draw::draw_declared_moves_system())
         .flush()
-        .add_system(print_hovered_cell_system())
         .add_system(roll_initiative_system())
         .add_system(clear_round_messages_system())
+        .add_system(update_tile_statuses_system())
         .flush()
         .add_system(end_turn_system())
         .build()
@@ -28,7 +26,6 @@ pub fn build_declare_phase_schedule() -> Schedule {
         .add_thread_local(draw::draw_grid_pieces_system())
         .add_thread_local(draw::draw_declared_moves_system())
         .flush()
-        .add_system(print_hovered_cell_system())
         .add_system(declare_ai_action_system())
         .flush()
         .add_system(end_turn_system())
@@ -43,17 +40,10 @@ pub fn build_resolve_phase_schedule() -> Schedule {
         .add_thread_local(draw::draw_grid_pieces_system())
         .add_thread_local(draw::draw_declared_moves_system())
         .flush()
-        .add_system(print_hovered_cell_system())
+        .add_system(resolve_moves_system())
         .flush()
         .add_system(end_turn_system())
         .build()
-}
-
-#[system]
-fn print_hovered_cell(#[resource] grid: &BattleGrid) {
-    let mouse_pos = mouse_position();
-    let cell = grid.get_cell_at_screen_pos(Vec2::new(mouse_pos.0, mouse_pos.1));
-    eprintln!("Cell under mouse at {mouse_pos:?} is {cell:?}");
 }
 
 #[system(for_each)]
@@ -123,7 +113,7 @@ fn declare_ai_action(
             *timer = 0.0;
 
             if let Ok(coord) = current_combatant.get_component::<Coordinate>() {
-                let rand_walk = generate_random_walk(*coord, grid, 0, 3, None);
+                let rand_walk = generate_random_walk(*coord, grid, 1, 3, None);
 
                 commands.push((
                     (),
@@ -151,4 +141,70 @@ fn declare_ai_action(
 #[system(for_each)]
 fn clear_round_messages(commands: &mut CommandBuffer, entity: &Entity, _msg: &Message, _: &Round) {
     commands.remove(*entity);
+}
+
+#[system(for_each)]
+#[write_component(Coordinate)]
+#[read_component(TileStatus)]
+fn resolve_moves(
+    ecs: &mut SubWorld,
+    commands: &mut CommandBuffer,
+    m_entity: &Entity,
+    _msg: &Message,
+    src: &Source,
+    mv: &Move,
+    #[resource] grid: &mut BattleGrid,
+    #[resource] turn_tracker: &TurnTracker,
+) {
+    let mut coord_query = <(Entity, &mut Coordinate, &TileStatus)>::query();
+
+    if let Some(start) = coord_query
+        .iter_mut(ecs)
+        .filter(|(entity, _, _)| {
+            **entity == src.entity && turn_tracker.get_current_combatant().entity == src.entity
+        })
+        .nth(0)
+    {
+        let mut final_location = mv
+            .dirs
+            .iter()
+            .fold(*start.1, |accum, item| accum + Coordinate::from(*item));
+
+        eprintln!(
+            "Moving from space: {:?} to {final_location:?} with directions {:?}",
+            start.1, mv.dirs
+        );
+
+        if mv
+            .dirs
+            .iter()
+            .rev()
+            .find(|dir| {
+                if grid.is_cell_in_bounds(final_location)
+                    && grid.get_status_at_coord(&final_location) == TileStatus::Empty
+                {
+                    return true;
+                } else {
+                    final_location -= Coordinate::from(**dir);
+                    return false;
+                }
+            })
+            .is_some()
+        {
+            grid.set_status_at_coord(start.1, TileStatus::Empty);
+            *start.1 = final_location;
+            grid.set_status_at_coord(&final_location, *start.2);
+        }
+
+        commands.remove(*m_entity);
+    }
+}
+
+#[system(for_each)]
+fn update_tile_statuses(
+    coord: &Coordinate,
+    t_status: &TileStatus,
+    #[resource] grid: &mut BattleGrid,
+) {
+    grid.set_status_at_coord(coord, *t_status);
 }

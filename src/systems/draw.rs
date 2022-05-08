@@ -98,7 +98,6 @@ pub fn draw_declared_moves(
         .for_each(|(_, color, coord)| {
             let mut current_coord = *coord;
             mv.dirs.iter().for_each(|dir| {
-                eprintln!("Drawing line...");
                 let new_coord = current_coord + Coordinate::from(*dir);
 
                 let line_start = grid.get_cell_center(current_coord.x, current_coord.y);

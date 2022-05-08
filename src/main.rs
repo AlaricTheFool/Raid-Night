@@ -37,13 +37,7 @@ impl State {
         let world = World::default();
         let mut resources = Resources::default();
 
-        resources.insert(BattleGrid {
-            screen_pos: Vec2::new(100., 100.),
-            width: 5,
-            height: 5,
-            grid_size: 96.,
-            line_width: 4.,
-        });
+        resources.insert(BattleGrid::new());
 
         resources.insert(TurnTracker::new());
         resources.insert(0.0 as f32);
@@ -102,6 +96,7 @@ async fn main() {
             Coordinate { x, y },
             color,
             ActionPoints::new(3),
+            TileStatus::Occupied,
         ));
     });
 

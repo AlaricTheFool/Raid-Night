@@ -1,5 +1,5 @@
 use crate::prelude::*;
-use std::ops::{Add, Mul};
+use std::ops::{Add, Mul, Sub, SubAssign};
 
 #[derive(Debug, Copy, Clone)]
 pub struct Coordinate {
@@ -11,6 +11,26 @@ impl Coordinate {
     const X: Self = Self { x: 1, y: 0 };
 
     const Y: Self = Self { x: 0, y: 1 };
+}
+
+impl Sub for Coordinate {
+    type Output = Self;
+
+    fn sub(self, other: Self) -> Self {
+        Self {
+            x: self.x - other.x,
+            y: self.y - other.y,
+        }
+    }
+}
+
+impl SubAssign for Coordinate {
+    fn sub_assign(&mut self, other: Self) {
+        *self = Self {
+            x: self.x - other.x,
+            y: self.y - other.y,
+        }
+    }
 }
 
 impl Add for Coordinate {
